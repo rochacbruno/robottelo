@@ -15,6 +15,7 @@
 :Upstream: No
 """
 import os
+import pytest
 
 from fauxfactory import gen_string
 from nailgun import client, entities
@@ -48,9 +49,7 @@ from robottelo.constants import (
     RPM_TO_UPLOAD,
 )
 from robottelo.decorators import (
-    bz_bug_is_open,
     run_in_one_thread,
-    skip_if_bug_open,
     skip_if_not_set,
     tier2,
     tier3,
@@ -75,7 +74,7 @@ class ContentManagementTestCase(APITestCase):
     interactions.
     """
 
-    @skip_if_bug_open('bugzilla', 1463811)
+    @pytest.mark.skip(reason="BZ:1463811")
     @tier2
     def test_positive_sync_repos_with_large_errata(self):
         """Attempt to synchronize 2 repositories containing large (or lots of)
@@ -273,7 +272,6 @@ class CapsuleContentManagementTestCase(APITestCase):
         self.assertEqual(len(capsule_rpms), 1)
         self.assertEqual(capsule_rpms[0], RPM_TO_UPLOAD)
 
-    @skip_if_bug_open('bugzilla', 1732066)
     @tier4
     def test_positive_checksum_sync(self):
         """Synchronize repository to capsule, update repository's checksum
@@ -284,7 +282,7 @@ class CapsuleContentManagementTestCase(APITestCase):
 
         :customerscenario: true
 
-        :BZ: 1288656, 1664288
+        :BZ: 1288656, 1664288, 1732066
 
         :expectedresults: checksum type is updated in repodata of corresponding
             repository on  capsule
@@ -406,7 +404,7 @@ class CapsuleContentManagementTestCase(APITestCase):
 
         :customerscenario: true
 
-        :BZ: 1394354
+        :BZ: 1394354, 1439691
 
         :expectedresults:
 
@@ -493,28 +491,29 @@ class CapsuleContentManagementTestCase(APITestCase):
         sync_status = capsule.content_get_sync()
         last_sync_time = sync_status['last_sync_time']
 
-        # If BZ1439691 is open, need to sync repo once more, as repodata
-        # will change on second attempt even with no changes in repo
-        if bz_bug_is_open(1439691):
-            repo.sync()
-            repo = repo.read()
-            cv.publish()
-            cv = cv.read()
-            self.assertEqual(len(cv.version), 2)
-            cv.version.sort(key=lambda version: version.id)
-            cvv = cv.version[-1].read()
-            promote(cvv, lce.id)
-            cvv = cvv.read()
-            self.assertEqual(len(cvv.environment), 2)
-            sync_status = capsule.content_get_sync()
-            self.assertTrue(
-                len(sync_status['active_sync_tasks']) >= 1
-                or sync_status['last_sync_time'] != last_sync_time
-            )
-            for task in sync_status['active_sync_tasks']:
-                entities.ForemanTask(id=task['id']).poll()
-            sync_status = capsule.content_get_sync()
-            last_sync_time = sync_status['last_sync_time']
+        # BEGIN BZ:1439691
+        # Since BZis CLOSED WONTFIX, need to sync repo once more,
+        # as repodata will change on second attempt even with no changes.
+        repo.sync()
+        repo = repo.read()
+        cv.publish()
+        cv = cv.read()
+        self.assertEqual(len(cv.version), 2)
+        cv.version.sort(key=lambda version: version.id)
+        cvv = cv.version[-1].read()
+        promote(cvv, lce.id)
+        cvv = cvv.read()
+        self.assertEqual(len(cvv.environment), 2)
+        sync_status = capsule.content_get_sync()
+        self.assertTrue(
+            len(sync_status['active_sync_tasks']) >= 1
+            or sync_status['last_sync_time'] != last_sync_time
+        )
+        for task in sync_status['active_sync_tasks']:
+            entities.ForemanTask(id=task['id']).poll()
+        sync_status = capsule.content_get_sync()
+        last_sync_time = sync_status['last_sync_time']
+        # END BZ:1439691
 
         # Assert that the content published on the capsule is exactly the
         # same as in repository on satellite
@@ -611,7 +610,6 @@ class CapsuleContentManagementTestCase(APITestCase):
             get_repo_files(cvv_repo_path)
         )
 
-    @skip_if_bug_open('bugzilla', 1734312)
     @tier4
     def test_positive_iso_library_sync(self):
         """Ensure RH repo with ISOs after publishing to Library is synchronized
@@ -621,7 +619,7 @@ class CapsuleContentManagementTestCase(APITestCase):
 
         :customerscenario: true
 
-        :BZ: 1303102, 1480358, 1303103
+        :BZ: 1303102, 1480358, 1303103, 1734312
 
         :expectedresults: ISOs are present on external capsule
 
@@ -1122,7 +1120,6 @@ class CapsuleContentManagementTestCase(APITestCase):
         broken_links = set(link for link in result.stdout if link)
         self.assertEqual(len(broken_links), 0)
 
-    @skip_if_bug_open('bugzilla', 1655243)
     @tier4
     def test_positive_sync_puppet_module_with_versions(self):
         """Ensure it's possible to sync multiple versions of the same puppet
@@ -1132,7 +1129,7 @@ class CapsuleContentManagementTestCase(APITestCase):
 
         :customerscenario: true
 
-        :BZ: 1365952
+        :BZ: 1365952, 1655243
 
         :Steps:
 
