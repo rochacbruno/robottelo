@@ -52,3 +52,5 @@ tests/foreman/pytest.ini
 
 # For --bzcollect generated file
 **/bzcollect.json
+
+**/component-owners-map.yaml

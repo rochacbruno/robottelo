@@ -3,7 +3,9 @@
 import datetime
 import inspect
 import json
+import yaml
 import logging
+import os
 import re
 
 import pytest
@@ -131,10 +133,23 @@ def log_test_execution(robottelo_logger, request):
     robottelo_logger.debug('Finished Test: {}'.format(test_full_name))
 
 
+def get_component_owners():
+    if os.path.exists('component-owners-map.yaml'):
+        with open('component-owners-map.yaml', 'r') as yamlfile:
+            data = yaml.safe_load(yamlfile)
+            return {
+                item['slug']: [item['primary'], item['secondary']]
+                for item in data.values()
+            }
+    return {}
+
+
 def generate_bz_collection(items, config, filename):
     """Generates a dictionary with the usage of BZ blockers"""
 
     bzcollect_data = {'skip': [], 'deselect': [], 'workaround': []}
+
+    component_owners = get_component_owners()
 
     for item in items:
         filepath, lineno, testcase = item.location
@@ -152,6 +167,8 @@ def generate_bz_collection(items, config, filename):
             if matches:
                 module_component = matches[0]
 
+        component_slug = re.sub('[^-_a-zA-Z0-9]', '', module_component.lower())
+
         for marker in item.iter_markers():
             if marker.name in ('skip', 'deselect'):
                 bzcollect_data[marker.name].append(
@@ -160,7 +177,9 @@ def generate_bz_collection(items, config, filename):
                         'filepath': filepath,
                         'lineno': lineno,
                         'testcase': testcase,
-                        'component': module_component
+                        'component': module_component,
+                        'component-slug': component_slug,
+                        'owners': component_owners.get(component_slug)
                     }
                 )
 
@@ -174,7 +193,9 @@ def generate_bz_collection(items, config, filename):
                         'filepath': filepath,
                         'lineno': lineno,
                         'testcase': testcase,
-                        'component': module_component
+                        'component': module_component,
+                        'component-slug': component_slug,
+                        'owners': component_owners.get(component_slug)
                     }
                 )
     print(json.dumps(bzcollect_data, indent=4))
